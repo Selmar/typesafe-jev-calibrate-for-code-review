@@ -1,0 +1,584 @@
+{
+  "_": "Labeled cases for .claude/jev/calibrate.py. expect=flag means the rule should score at or above its threshold; expect=pass means below. expect=straddles (or expect_by_rule for one rule) sits on the line: reported, never failed. Baselines are measured medians of 3 runs against the rules as committed; re-record when a rule or the pinned model changes. Each case carries exactly the state its rules declare, matching what review.py sends. baseline is what the case measured when last recorded; --record overwrites it. Cases marked withdrawn_only run only with --include-withdrawn; their failures are printed but never counted.",
+  "cases": [
+    {
+      "name": "hidden_side_effect_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "hidden_side_effect"
+      ],
+      "why": "exemption: intern implies the cache write",
+      "state": {
+        "declaration": "EntityDefKey InternTimelineNode(TimelineNodeConfig node, string context)\n{\n    if (_nodeKeys.TryGetValue(node, out var existing))\n        return existing;\n\n    var key = MintGeneratedKey();\n    _nodeKeys[node] = key;\n    DeclareTimelineNodeDefinition(key, node, context);\n    return key;\n}"
+      },
+      "baseline": {
+        "hidden_side_effect": 0.41
+      }
+    },
+    {
+      "name": "hidden_side_effect_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "hidden_side_effect"
+      ],
+      "why": "Get promises a read, body bumps a counter and clears a queue",
+      "state": {
+        "declaration": "public Item GetItem(int index)\n{\n    _accessCount++;\n    _pending.Clear();\n    return _items[index];\n}"
+      },
+      "baseline": {
+        "hidden_side_effect": 0.92
+      }
+    },
+    {
+      "name": "unasserted_precondition_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "unasserted_precondition"
+      ],
+      "why": "EntityRenderer.EnsureCapacity with the access keyword stripped: same body, in-type callers",
+      "state": {
+        "declaration": "\t\tvoid EnsureCapacity(int instanceCount)\n\t\t{\n\t\t\tif (instanceCount <= _layout.Capacity)\n\t\t\t\treturn;\n\n\t\t\t_group.RemoveBatch(_batch);\n\t\t\t_buffer.Dispose();\n\t\t\tCollectionHelper.Dispose(_instances);\n\t\t\tCollectionHelper.Dispose(SlotEntities);\n\t\t\tCollectionHelper.Dispose(SlotRadii);\n\t\t\tCollectionHelper.Dispose(_isSlotSelected);\n\t\t\tBuild(math.max(instanceCount, _layout.Capacity + _layout.Capacity / 2));\n\t\t}"
+      },
+      "baseline": {
+        "unasserted_precondition": 0.11
+      }
+    },
+    {
+      "name": "unasserted_precondition_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "unasserted_precondition"
+      ],
+      "why": "real positive: EntityRenderer.EnsureCapacity before 689d0d52 added the assert",
+      "state": {
+        "declaration": "\t\tpublic void EnsureCapacity(int instanceCount)\n\t\t{\n\t\t\tif (instanceCount <= _layout.Capacity)\n\t\t\t\treturn;\n\n\t\t\t_group.RemoveBatch(_batch);\n\t\t\t_buffer.Dispose();\n\t\t\tCollectionHelper.Dispose(_instances);\n\t\t\tCollectionHelper.Dispose(SlotEntities);\n\t\t\tCollectionHelper.Dispose(SlotRadii);\n\t\t\tCollectionHelper.Dispose(_isSlotSelected);\n\t\t\tBuild(math.max(instanceCount, _layout.Capacity + _layout.Capacity / 2));\n\t\t}"
+      },
+      "baseline": {
+        "unasserted_precondition": 0.67
+      }
+    },
+    {
+      "name": "magic_literal_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "magic_literal"
+      ],
+      "why": "exemption: 2f turns a radius into a diameter, 0.5f a half extent",
+      "state": {
+        "declaration": "void DrawRing(float3 centre, float radius)\n{\n    var diameter = 2f * radius;\n    var half = 0.5f * diameter;\n    AddInstance(centre, diameter, half);\n}"
+      },
+      "baseline": {
+        "magic_literal": 0.08
+      }
+    },
+    {
+      "name": "magic_literal_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "magic_literal"
+      ],
+      "why": "1024 is a rule stated once in code with no name",
+      "state": {
+        "declaration": "void EnsureCapacity(int needed)\n{\n    if (needed <= 1024)\n        return;\n\n    Grow(needed + 1024);\n}"
+      },
+      "baseline": {
+        "magic_literal": 0.81
+      }
+    },
+    {
+      "name": "assert_message_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "assert_message"
+      ],
+      "why": "exemption: a method whose name starts with Assert is ordinary code",
+      "state": {
+        "declaration": "void AssertNoCyclicalReferences(EntityDefKey key, Dictionary<EntityDefKey, byte> state)\n{\n    foreach (var child in _children[key])\n        AssertNoCyclicalReferences(child, state);\n}"
+      },
+      "baseline": {
+        "assert_message": 0.1
+      }
+    },
+    {
+      "name": "assert_message_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "assert_message"
+      ],
+      "why": "real assertion API call, no message naming the condition",
+      "state": {
+        "declaration": "public void Run(int start, int count)\n{\n    Assert.IsTrue(start >= 0);\n    Assert.IsTrue(count > 0);\n    Execute(start, count);\n}"
+      },
+      "baseline": {
+        "assert_message": 0.98
+      }
+    },
+    {
+      "name": "subject_not_action_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "subject_not_action"
+      ],
+      "why": "name states the act and the result it returns",
+      "state": {
+        "declaration": "int CountActiveParts()\n{\n\tvar active = 0;\n\tforeach (var part in _parts)\n\t\tif (part.Enabled)\n\t\t\tactive++;\n\n\treturn active;\n}"
+      },
+      "baseline": {
+        "subject_not_action": 0.05
+      }
+    },
+    {
+      "name": "subject_not_action_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "subject_not_action"
+      ],
+      "why": "bare noun; body computes a half-span the name does not state",
+      "state": {
+        "declaration": "float Extent(int slot)\n{\n\tvar span = _max[slot] - _min[slot];\n\treturn math.length(span) * 0.5f;\n}"
+      },
+      "baseline": {
+        "subject_not_action": 0.81
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "reads as a claim inside an if",
+      "state": {
+        "declaration": "bool ContainsEntity(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.48
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "verb reads as doing something; only reports a fact",
+      "state": {
+        "declaration": "bool Evaluate(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.8
+      }
+    },
+    {
+      "name": "name_is_implementation_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "names the role, not just the mechanism",
+      "state": {
+        "declaration": "readonly List<EntityHandle> _selectedList = new();",
+        "siblings": [
+          "_selectedList",
+          "_pendingList",
+          "_hoveredList",
+          "Add",
+          "Clear"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.11
+      }
+    },
+    {
+      "name": "name_is_implementation_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "bare mechanism while siblings pair it with a role",
+      "state": {
+        "declaration": "readonly List<EntityHandle> _list = new();",
+        "siblings": [
+          "_list",
+          "_pendingList",
+          "_hoveredList",
+          "Add",
+          "Clear"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.65
+      }
+    },
+    {
+      "name": "assert_and_guard_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "assert_and_guard"
+      ],
+      "why": "asserts only; no branch tolerating the same input",
+      "state": {
+        "declaration": "public void Reserve(int count)\n{\n\tAssert.IsTrue(count > 0, \"Reserve: count must be positive\");\n\n\t_capacity += count;\n}"
+      },
+      "baseline": {
+        "assert_and_guard": 0.04
+      }
+    },
+    {
+      "name": "assert_and_guard_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "assert_and_guard"
+      ],
+      "why": "asserts the requirement and then silently tolerates it failing",
+      "state": {
+        "declaration": "public void Reserve(int count)\n{\n\tAssert.IsTrue(count > 0, \"Reserve: count must be positive\");\n\n\tif (count <= 0)\n\t\treturn;\n\n\t_capacity += count;\n}"
+      },
+      "baseline": {
+        "assert_and_guard": 0.7
+      }
+    },
+    {
+      "name": "silent_guard_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "silent_guard"
+      ],
+      "why": "genuinely expected case: optional data absent",
+      "state": {
+        "declaration": "void ApplyOverride(EntityHandle entity)\n{\n\tif (!_overrides.TryGetValue(entity, out var style))\n\t\treturn;\n\n\t_styles[entity] = style;\n}"
+      },
+      "baseline": {
+        "silent_guard": 0.4
+      }
+    },
+    {
+      "name": "silent_guard_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "silent_guard"
+      ],
+      "why": "a negative slot can only be a caller mistake; skipped without a word",
+      "state": {
+        "declaration": "public void SetRadius(int slot, float radius)\n{\n\tif (slot < 0 || slot >= _radii.Length)\n\t\treturn;\n\n\t_radii[slot] = radius;\n}"
+      },
+      "baseline": {
+        "silent_guard": 0.89
+      }
+    },
+    {
+      "name": "index_as_field_pass",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "index_as_field"
+      ],
+      "why": "named fields rather than constant positions",
+      "state": {
+        "declaration": "void Encapsulate(float3 point)\n{\n\t_bounds.Min = math.min(_bounds.Min, point);\n\t_bounds.Max = math.max(_bounds.Max, point);\n}"
+      },
+      "baseline": {
+        "index_as_field": 0.11
+      }
+    },
+    {
+      "name": "index_as_field_flag",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "index_as_field"
+      ],
+      "why": "slot 0 is the minimum, slot 1 the maximum: two fields in an array",
+      "state": {
+        "declaration": "void Encapsulate(float3 point)\n{\n\t_pendingMinMax[0] = math.min(_pendingMinMax[0], point);\n\t_pendingMinMax[1] = math.max(_pendingMinMax[1], point);\n}"
+      },
+      "baseline": {
+        "index_as_field": 0.77
+      }
+    },
+    {
+      "name": "name_is_implementation_flag_map",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "mechanism shared with two siblings that state their role",
+      "state": {
+        "declaration": "readonly Dictionary<EntityHandle, int> _map = new();",
+        "siblings": [
+          "_map",
+          "_entityMap",
+          "_slotMap",
+          "Add",
+          "Clear"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.8
+      }
+    },
+    {
+      "name": "name_is_implementation_flag_buffer",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "bare mechanism beside two that name what they buffer",
+      "state": {
+        "declaration": "GraphicsBuffer _buffer;",
+        "siblings": [
+          "_buffer",
+          "_vertexBuffer",
+          "_indexBuffer",
+          "Upload",
+          "Dispose"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.89
+      }
+    },
+    {
+      "name": "name_is_implementation_pass_role",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "names what it holds, not just how",
+      "state": {
+        "declaration": "readonly Dictionary<EntityHandle, int> _entityMap = new();",
+        "siblings": [
+          "_entityMap",
+          "_slotMap",
+          "Add",
+          "Clear"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.16
+      }
+    },
+    {
+      "name": "name_is_implementation_pass_unshared",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "name_is_implementation"
+      ],
+      "why": "exemption: no sibling shares the mechanism, so the bare term identifies it",
+      "state": {
+        "declaration": "readonly List<EntityHandle> _list = new();",
+        "siblings": [
+          "_list",
+          "_count",
+          "_head",
+          "Add",
+          "Clear"
+        ]
+      },
+      "baseline": {
+        "name_is_implementation": 0.36
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_flag_select",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "verb names an act; the body only reports",
+      "state": {
+        "declaration": "bool Select(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.86
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_flag_refresh",
+      "kind": "declaration",
+      "expect": "flag",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "verb names an act; the body only reports",
+      "state": {
+        "declaration": "bool Refresh(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.92
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_pass_isvisible",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "reads as a claim",
+      "state": {
+        "declaration": "bool IsVisible(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.06
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_pass_nonbool",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "exemption: act-shaped name, but the method does not return bool",
+      "state": {
+        "declaration": "int Refresh(EntityHandle entity)\n{\n\treturn _members.Count;\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.04
+      }
+    },
+    {
+      "name": "verb_rules_pass_control",
+      "kind": "type",
+      "expect": "pass",
+      "rules": [
+        "verb_disagreement",
+        "verb_overload"
+      ],
+      "why": "Kept as evidence for a withdrawn rule; skipped by the default run. one verb per act, distinct acts",
+      "state": {
+        "signatures": [
+          "void AddItem(Item item)",
+          "void AddRange(IReadOnlyList<Item> items)",
+          "Item GetItem(int index)",
+          "bool TryGetItem(Key key, out Item item)",
+          "void RemoveItem(Key key)"
+        ]
+      },
+      "withdrawn_only": true,
+      "baseline": {
+        "verb_disagreement": 0.15,
+        "verb_overload": 0.21
+      }
+    },
+    {
+      "name": "verb_disagreement_flag_control",
+      "kind": "type",
+      "expect": "flag",
+      "rules": [
+        "verb_disagreement"
+      ],
+      "why": "Kept as evidence for a withdrawn rule; skipped by the default run. Add/Register/Declare are one act; Fetch/Lookup are another",
+      "state": {
+        "signatures": [
+          "void AddItem(Item item)",
+          "void RegisterItem(Item item)",
+          "void DeclareItem(Item item)",
+          "Item FetchItem(int index)",
+          "Item LookupItem(Key key)",
+          "void DropItem(Key key)"
+        ]
+      },
+      "withdrawn_only": true,
+      "baseline": {
+        "verb_disagreement": 0.81
+      }
+    },
+    {
+      "name": "verb_rules_flag_real",
+      "kind": "type",
+      "expect": "flag",
+      "rules": [
+        "verb_disagreement",
+        "verb_overload"
+      ],
+      "why": "Withdrawn rule: the real defect. Declare* covered registering, minting and resolving. verb_disagreement scores it 0.56 and does NOT flag it - it misses the case it was built for. verb_overload flags it correctly at 0.71, but only via a criteria clause paraphrasing these exact three methods; remove that clause and it cannot separate this pair at all.",
+      "state": {
+        "signatures": [
+          "internal void DeclareCollection(EntityDefinitionCollection collection)",
+          "internal TemplateRegistry.RegisteredArchetype DeclareUnkeyed(string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested, out int entry)",
+          "public IReadOnlyList<Template> BuildTemplates() => _registry.BuildTemplates();",
+          "void DeclareKeyed(EntityDefKey key, string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested)",
+          "int DeclareEntry(string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested)",
+          "void DeclareAbilities(AbilityOwnerModuleConfig owner)",
+          "EntityDefKey[] DeclareDefinitionAssets(EntityDefinitionAsset[] assets)",
+          "EntityDefKey DeclareEntityCreate(EntityCreateConfig config, string context)",
+          "internal EntityDefKey DeclareDefinitionAsset(EntityDefinitionAsset asset)",
+          "void DeclareNested(IReadOnlyList<NestedDefinition> nested)",
+          "void DeclareTimeline(ActionTimelineModuleConfig timeline, string context)",
+          "EntityDefKey DeclareTimelineNode(TimelineNodeConfig node, string context)",
+          "EntityDefKey MintGeneratedKey() => EntityDefKey.Generated(_generatedCounter++);",
+          "public IReadOnlyList<LookSource> BuildLooks()",
+          "public void BuildBlobRegistry(DefinitionRegistry definitions)",
+          "void ValidateNested()",
+          "void DetectSpawnCycle(EntityDefKey key, Dictionary<EntityDefKey, byte> state)"
+        ]
+      },
+      "withdrawn_only": true,
+      "baseline": {
+        "verb_disagreement": 0.59,
+        "verb_overload": 0.69
+      }
+    },
+    {
+      "name": "verb_rules_pass_real",
+      "kind": "type",
+      "expect": "pass",
+      "rules": [
+        "verb_disagreement",
+        "verb_overload"
+      ],
+      "why": "Withdrawn rule: the same class after Declare* was split into Intern/Resolve/Create/Assert/Build by what each actually does. verb_disagreement scores the IMPROVED code 0.66 and flags it - the rule is inverted, and the pair proves it. This is the fixture the suite never had: without a realistic counterpart to the defect case, a per-case suite validates that a rule fires, never that it discriminates.",
+      "state": {
+        "signatures": [
+          "internal TemplateRegistry.RegisteredArchetype DeclareUnkeyedDefinition(string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested, out int entry)",
+          "public IReadOnlyList<Template> BuildTemplates() => _registry.BuildTemplates();",
+          "int DeclareKeyedDefinition(EntityDefKey key, string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested)",
+          "int CreateEntry(string nameHint, List<ModuleConfig> configs, IReadOnlyList<NestedDefinition> nested)",
+          "void ResolveAbilities(AbilityOwnerModuleConfig owner)",
+          "EntityDefKey[] InternDefinitionAssets(EntityDefinitionAsset[] assets)",
+          "EntityDefKey InternEntityCreate(EntityCreateConfig config, string context)",
+          "internal EntityDefKey InternDefinitionAsset(EntityDefinitionAsset asset)",
+          "void ResolveTimeline(ActionTimelineModuleConfig timeline, string context)",
+          "EntityDefKey InternTimelineNode(TimelineNodeConfig node, string context)",
+          "void DeclareTimelineNodeDefinition(EntityDefKey key, TimelineNodeConfig node, string context)",
+          "EntityDefKey MintGeneratedKey() => EntityDefKey.Generated(_generatedCounter++);",
+          "public IReadOnlyList<LookSource> BuildLooks()",
+          "public void BuildBlobRegistry(DefinitionRegistry definitions)",
+          "void AssertDeclarationsValid()",
+          "void AssertNoCyclicalReferences(EntityDefKey key, Dictionary<EntityDefKey, byte> state)"
+        ]
+      },
+      "withdrawn_only": true,
+      "baseline": {
+        "verb_disagreement": 0.67,
+        "verb_overload": 0.52
+      }
+    }
+  ]
+}

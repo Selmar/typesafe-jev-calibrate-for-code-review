@@ -1,0 +1,183 @@
+{
+  "_": "Each rule declares the state fields it needs; review.py sends one request per distinct field set, and builds that rule's context from state_docs for those fields plus the facts it names. Nothing else is sent: extra state perturbs rules that never asked for it, and a rule that is given a field today will silently start using it tomorrow. Two rules are kept with a `withdrawn` note: they are not in use, and the fixtures that show why run only with --include-withdrawn.",
+  "state_docs": {
+    "declaration": "`declaration` is one member declaration from `language` source code: its attributes, signature and body, cut off with a truncation marker if long.",
+    "comment": "`comment` is the comment block directly above it, absent when there is none; a case the comment states as intended is intended.",
+    "siblings": "`siblings` names every member of the type that declares it.",
+    "signatures": "`signatures` lists the method signatures declared by one type in `language` source code, in declaration order."
+  },
+  "judge_only": "Judge only what these show; do not assume code you cannot see.",
+  "facts": {
+    "visibility": "In C#, a member declared with no access modifier is private, and a type with none is internal.",
+    "assertion": "An assertion is a call to an assertion API such as Assert.IsTrue, Assert.IsNotNull or Debug.Assert; a method whose own name begins with Assert is ordinary code, not an assertion."
+  },
+  "rules": {
+    "subject_not_action": {
+      "state": [
+        "declaration"
+      ],
+      "threshold": 0.6,
+      "label": "name names subject, not action or result",
+      "instructions": "Does the method name in `declaration` name only its subject, leaving out the action it performs or the value it returns, so a reader must read the body to know what it does?",
+      "criteria": {
+        "true": "The name is a bare noun or adjective naming what the method is about (Invoice, Recipient, Temperature), while the body computes, returns or changes something the name does not state.",
+        "false": "The name states the action or the result (FormatInvoice, NextRecipient, AverageTemperature), or `declaration` is a field, property, constructor, operator or type."
+      }
+    },
+    "predicate_reads_as_action": {
+      "state": [
+        "declaration"
+      ],
+      "threshold": 0.6,
+      "label": "bool method named as an action, not a claim",
+      "instructions": "Does `declaration` return bool under a name that reads as performing an act rather than stating a fact?",
+      "criteria": {
+        "true": "The name is a verb describing doing something (Authorise, Charge, Verify) although the method only reports a fact and changes nothing.",
+        "false": "The name reads as a claim that can sit inside an if-condition (IsAuthorised, HasBalance, CanRetry), or the method does not return bool."
+      }
+    },
+    "name_is_implementation": {
+      "state": [
+        "declaration",
+        "siblings"
+      ],
+      "threshold": 0.6,
+      "label": "name states mechanism, not purpose",
+      "instructions": "Does the name in `declaration` give only the mechanism or storage technique, so a reader cannot tell which member it is among the `siblings` built on that same mechanism?",
+      "criteria": {
+        "true": "Other members in `siblings` pair that same mechanism word with the role they serve, and this one carries the bare mechanism alone.",
+        "false": "The name states what it holds or the role it serves; or no sibling shares its mechanism; or the mechanism is the purpose itself. Answer no when `declaration` is a method: a method's name is judged by what it does, not by what it is built on."
+      }
+    },
+    "magic_literal": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "threshold": 0.6,
+      "label": "unnamed literal; give it a name",
+      "instructions": "Does `declaration` use a numeric or string literal whose meaning a reader cannot derive, where a named constant or an enum value should own it?",
+      "criteria": {
+        "true": "A literal encodes a threshold, capacity, tuning value, state code or key that a reader would have to trace elsewhere to understand, and it appears without a name.",
+        "false": "Every literal is self-evident from what it is assigned to or compared against, or is 0, 1 or -1, or sits in a const, enum or static readonly declaration, which is itself the name. Answer no for a small factor doing plain geometry on a named value: a radius doubled into a diameter, a half extent or midpoint, an average."
+      }
+    },
+    "assert_and_guard": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "facts": [
+        "assertion"
+      ],
+      "threshold": 0.6,
+      "label": "asserts and also handles the same input",
+      "instructions": "Does `declaration` assert a condition and also handle that same condition failing at runtime, so the invalid input is both rejected and silently tolerated?",
+      "criteria": {
+        "true": "An assertion states a requirement, and a branch, early return, null-coalesce or clamp in the same code handles the case where that requirement does not hold.",
+        "false": "It asserts only, or handles only, or the runtime handling covers a different condition than the assertion."
+      }
+    },
+    "silent_guard": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "facts": [
+        "assertion"
+      ],
+      "threshold": 0.6,
+      "label": "silently accepts a caller mistake",
+      "instructions": "Does `declaration` return early, skip work or substitute a default on a condition that means the caller passed something it should not have, without asserting or reporting it?",
+      "criteria": {
+        "true": "The skipped case can only arise from a caller mistake or broken setup, and the code quietly continues, so the mistake goes unnoticed.",
+        "false": "The condition is a genuinely expected case such as external input, IO, optional data or a recoverable state, or the code asserts it."
+      }
+    },
+    "unasserted_precondition": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "facts": [
+        "visibility",
+        "assertion"
+      ],
+      "threshold": 0.6,
+      "label": "requirement that fails silently, unasserted",
+      "instructions": "Does the signature in `declaration` carry the keyword public or internal, and rely on a requirement about an argument whose violation would not throw at once, but would instead produce a wrong result, write to the wrong place or corrupt state, without asserting it?",
+      "criteria": {
+        "true": "A bad argument would pass through unnoticed: an index or count taken as valid, a value scaled or accumulated, a key inserted, an argument stored for later use far from this call.",
+        "false": "The signature carries neither public nor internal, so it is not an API boundary; or a violation throws immediately at the point of use, as a null reference or an out-of-range index does; or the requirement is asserted; or the argument's type already guarantees it; or the member takes no arguments."
+      }
+    },
+    "assert_message": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "facts": [
+        "assertion"
+      ],
+      "threshold": 0.6,
+      "label": "assert message does not name the condition",
+      "instructions": "Does an assertion in `declaration` carry no message argument, or a message that fails to name the condition or range that was expected?",
+      "criteria": {
+        "true": "The message is absent, or only names the method, field or value without stating what was required of it.",
+        "false": "Every assertion's message states the expected condition or range. Answer no when `declaration` makes no assertion API call at all."
+      }
+    },
+    "index_as_field": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "threshold": 0.6,
+      "label": "constant indices carrying distinct meanings; name them",
+      "instructions": "Does `declaration` address a fixed-size collection by constant indices where each index holds a different kind of thing, so the positions are really named fields of a struct?",
+      "criteria": {
+        "true": "Distinct literal indices each carry their own meaning, and a reader needs a comment or convention to know which position holds what.",
+        "false": "Indices vary at runtime, or every element is the same kind of thing. Answer no when `declaration` declares or uses named fields rather than indexing a collection by constant positions."
+      }
+    },
+    "hidden_side_effect": {
+      "state": [
+        "declaration",
+        "comment"
+      ],
+      "threshold": 0.7,
+      "label": "name promises a value; body also changes state",
+      "instructions": "Does the name in `declaration` promise only a value, while the body also changes state that outlives the call?",
+      "criteria": {
+        "true": "The name is a noun phrase naming what comes back, and the body also registers, stores, appends or mints something, so a caller reading the name would not expect the change.",
+        "false": "The name states the act that changes state, or the body only computes and returns. Answer no when the change is the memoisation that the name's own verb implies, as interning does."
+      }
+    },
+    "verb_disagreement": {
+      "state": [
+        "signatures"
+      ],
+      "threshold": 0.6,
+      "label": "sibling methods use different verbs for one operation",
+      "instructions": "Do two or more of `signatures` perform the same kind of operation under different verbs, so a reader cannot tell from the names that they belong to one family?",
+      "criteria": {
+        "true": "Members that do the same kind of act are named with different verbs (Register, Declare and Add for the same act), or one family's verb is used for an unrelated act elsewhere in the list.",
+        "false": "Each kind of operation uses one verb consistently across the list, or the verb is part of a hierarchy of related operations (e.g. DeclareRoot and DeclareChildElement)."
+      },
+      "withdrawn": "Ranks improved code worse than the original on the one real before/after pair available: -0.10 on signatures, -0.13 on mixed declarations, -0.16 on method bodies. Asks what operation each member performs, which signatures do not contain, so it falls back to the verbs and reads a diversified vocabulary as disagreement. Not in use."
+    },
+    "verb_overload": {
+      "state": [
+        "signatures"
+      ],
+      "threshold": 0.6,
+      "label": "one verb covering materially different operations",
+      "instructions": "Do two or more of `signatures` perform a different kind of operation under the same verb, so a reader cannot tell from the names that they belong to different families?",
+      "criteria": {
+        "true": "Members named with the same verb do different kinds of acts (e.g. Declare used for creation in one place and for lookup in the other). Their parameters and return types show the difference: one registers what it is given, another mints and returns a new identity, another only looks something up.",
+        "false": "Members sharing a verb do the same kind of work on different inputs, or forward to similarly named functions."
+      },
+      "withdrawn": "Scored +0.21 on signatures and +0.25 on method bodies until the criteria.true clause naming 'parameters and return types show the difference' was removed - a paraphrase of the three methods it was tuned against. Without it, on full bodies, before and after both score 0.36. Not in use."
+    }
+  }
+}

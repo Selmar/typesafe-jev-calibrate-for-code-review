@@ -1,0 +1,111 @@
+{
+  "_": "All thirteen comment rules. State is the comment block plus the code directly below it. Run with: python calibrate.py --rules comment-rules.json --fixtures comment-fixtures.json",
+  "context": "`comment` is a // comment block from `language` source code. `annotated_code` is the code directly below it: the declaration or statement the comment annotates, cut off with a truncation marker if long.",
+  "rules": {
+    "explains_identifier": {
+      "label": "explains identifier meaning; rename instead",
+      "threshold": 0.6,
+      "instructions": "Does `comment` explain what an identifier in `annotated_code` means or is, such that a better name for that identifier would make the comment unnecessary? Answer no when it explains what a particular value of that identifier means — null, a negative number, zero — rather than what the identifier itself is."
+    },
+    "history": {
+      "label": "modification/bug history",
+      "threshold": 0.6,
+      "instructions": "Does `comment` narrate history rather than describe the code as it is now?",
+      "criteria": {
+        "true": "Describes a past state or a change: what the code used to do, a bug that was fixed, why a change was made, what was tried before.",
+        "false": "States a constraint, invariant, or reason that holds for the current code, even when phrased as 'must', 'so that', or 'otherwise X breaks'."
+      }
+    },
+    "pointer_or_callers": {
+      "label": "file pointer or current callers",
+      "threshold": 0.6,
+      "instructions": "Does `comment` point the reader to another file or note, or state who currently calls or uses the code (for example 'called from X', 'see notes/foo.md')?"
+    },
+    "restates_code": {
+      "label": "restates code",
+      "threshold": 0.6,
+      "instructions": "Does `comment` restate something what `annotated_code` already says plainly, adding no constraint, reason, or non-obvious fact?"
+    },
+    "framework_mechanism": {
+      "label": "explains C# itself",
+      "threshold": 0.6,
+      "instructions": "Does `comment` explain how the C# language or its standard library behaves — facts any C# programmer carries, such as collection complexity, iteration or allocation behaviour, or what a common API call does?",
+      "criteria": {
+        "true": "States language or standard-library behaviour that holds everywhere, independent of this project or its engine.",
+        "false": "States a specific engine, framework or library API's contract, requirement or gotcha — something a reader would have to find in that API's documentation."
+      }
+    },
+    "rejected_alternative": {
+      "label": "names a rejected alternative; notes own those",
+      "threshold": 0.6,
+      "instructions": "Does `comment` name an approach that was not taken, or argue against an alternative implementation? Answer no when it states a requirement of an API or of this code, without weighing an alternative.",
+      "criteria": {
+        "true": "Names another way of doing it and says why this way was chosen instead; the decision and its rejected alternatives belong in a note.",
+        "false": "States what the code does or must do, without comparing it to an alternative."
+      }
+    },
+    "vague_referent": {
+      "label": "vague referent",
+      "threshold": 0.6,
+      "instructions": "Does `comment` refer to something by a vague or ambiguous name, such that a reader of `annotated_code` could not pin down what it means?",
+      "criteria": {
+        "true": "Uses a shorthand, pronoun, or loose phrase ('the def', 'it', 'the node's thing') whose referent is unclear or could mean several things in `annotated_code`.",
+        "false": "Every thing it mentions is named precisely enough to identify in `annotated_code` or as a known type."
+      }
+    },
+    "not_owner": {
+      "label": "fact owned by other code",
+      "threshold": 0.7,
+      "instructions": "Does `comment` state facts that belong to other code, describing how another type, system, or component behaves or what it is responsible for, rather than facts about `annotated_code` itself, except where the other code is a direct reason for a constraint in `annotated_code`? Answer no when `annotated_code` is a type declaration: a type's header may say what the type maintains and which APIs it is built on.",
+      "criteria": {
+        "true": "Describes behaviour, responsibilities, or internals of other code; that fact belongs at the other code's own declaration.",
+        "false": "Mentions other code to state a requirement, dependency, or consequence that `annotated_code` itself has."
+      }
+    },
+    "future_plan": {
+      "label": "future plan",
+      "threshold": 0.6,
+      "instructions": "Does `comment` contain descriptions of future work: planned changes, features that will come later, or deferred designs?",
+      "criteria": {
+        "true": "Mentions what will be added, changed, or done later ('later', 'TODO', 'deferred', 'will', 'come later').",
+        "false": "Describes only the code as it is now."
+      }
+    },
+    "unstructured": {
+      "label": "hard to scan; split it",
+      "threshold": 0.6,
+      "instructions": "Is `comment` hard to scan: several lines of continuous prose in which a reader must hunt for the part that matters to them? Answer no for a comment of one or two short lines, however many facts it packs.",
+      "criteria": {
+        "true": "Several lines of prose running distinct constraints, reasons and caveats together, so the reader parses the whole block to find one part. One fact per line, or a short list, would make each findable.",
+        "false": "One or two short lines, or lines that each stand on their own and can be picked out at a glance."
+      }
+    },
+    "contradicts_code": {
+      "label": "contradicts code",
+      "threshold": 0.6,
+      "instructions": "Does `comment` claim something that `annotated_code` does not do, or that a reader of `annotated_code` would find to be false or misleading?",
+      "criteria": {
+        "true": "A claim in the comment conflicts with the code: it says 'always' where the code has an exception or early return, names behaviour the code lacks, or describes the code in a way that invites a wrong reading.",
+        "false": "Every claim in the comment is consistent with `annotated_code`, or concerns things not visible in it."
+      }
+    },
+    "caller_irrelevant_internals": {
+      "label": "internals at signature; move inside",
+      "threshold": 0.6,
+      "instructions": "Is `annotated_code` a method or function declaration, and does `comment` describe internals such as steps, algorithm, or data structures that are not necessary for the caller to use the function correctly?",
+      "criteria": {
+        "true": "Describes how the method does its work: the algorithm, the internal state or encoding it keeps, the order of its internal steps. Belongs inside the method body.",
+        "false": "Describes the contract a caller depends on — parameters, return value, side effects, preconditions, call order — or `annotated_code` is not a method declaration."
+      }
+    },
+    "verbose_prose": {
+      "label": "prose, not caveman",
+      "threshold": 0.6,
+      "instructions": "Does `comment` contain loose prose that could be cut down without losing meaning?",
+      "criteria": {
+        "true": "Full sentences padded with articles, filler words, hedging, or connective phrases that carry no meaning.",
+        "false": "Terse fragments, or dense technical sentences where every clause carries meaning, even with an occasional article."
+      }
+    }
+  }
+}

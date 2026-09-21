@@ -1,0 +1,218 @@
+{
+  "_": "Labeled comment cases. expect=flag means the rule should score at or above its threshold; expect=pass means below. Real cases are verbatim from the reviewed codebase; synthetic ones target one rule each. Run with: python calibrate.py --rules comment-rules.json --fixtures comment-fixtures.json",
+  "cases": [
+    {
+      "name": "real_constraint_on_statement",
+      "expect": "pass",
+      "rules": [
+        "history",
+        "restates_code",
+        "not_owner",
+        "verbose_prose"
+      ],
+      "why": "states why only static needs marking; a constraint, not a narration",
+      "state": {
+        "comment": "// The gather's scatter marks the dynamic slots every frame; only static needs marking here.",
+        "annotated_code": "\t\t\tMarkStaticSelection();"
+      },
+      "baseline": {
+        "history": 0.11,
+        "restates_code": 0.17,
+        "not_owner": 0.56,
+        "verbose_prose": 0.21
+      }
+    },
+    {
+      "name": "real_input_not_bug",
+      "expect": "pass",
+      "rules": [
+        "restates_code",
+        "caller_irrelevant_internals",
+        "contradicts_code"
+      ],
+      "why": "says why the guard is not an assertion: the slot is external input",
+      "state": {
+        "comment": "// Slot comes off a colour buffer, so out of range is input, not a bug.",
+        "annotated_code": "\t\tinternal EntityHandle PickedEntity(int slot)\n\t\t{\n\t\t\tif ((uint)slot >= (uint)PickingCount)\n\t\t\t\treturn default;\n\n\t\t\treturn slot < _staticCount ? StaticSlotEntities[slot] : SlotEntities[slot - _staticCount];\n\t\t}"
+      },
+      "baseline": {
+        "restates_code": 0.24,
+        "caller_irrelevant_internals": 0.39,
+        "contradicts_code": 0.23
+      }
+    },
+    {
+      "name": "real_empty_invariant",
+      "expect": "pass",
+      "rules": [
+        "restates_code",
+        "explains_identifier",
+        "verbose_prose"
+      ],
+      "why": "inverted-while-empty is a non-obvious invariant the code does not show",
+      "state": {
+        "comment": "// Inverted (min > max) while empty, so a union with it is a no-op.",
+        "annotated_code": "\t\tfloat3 _staticMin = float.MaxValue;\n\t\tfloat3 _staticMax = float.MinValue;\n\n\t\tpublic NativeArray<Run> StaticRuns => _staticRuns;\n\t\tpublic InstanceLayout StaticLayout => _staticLayout;\n\n\t\tconst int OverlayInitialCapacity = 256;\n\n\t\t// Unculled: a few hundred boxes, many long or wide.\n\t\tGraphicsBuffer _overlayBuffer;\n\t\tInstanceLayout _overlayLayout;\n\t\tBatchID _overlayBatch;\n\t\tNativeArray<uint> _overlayInstances;\n\n\t\tNativeArray<Run> _decalRuns;\n\n\t\tNativeReference<OverlayOutput> _pendingOverlay;\n\n\t\t// What the GPU holds, as of the last Upload.\n\t\tOverlayOutput _overlay;\n\n\t\treadonly BatchMaterialID _selectionMask;\n\n\t\tpublic int SelectedRingKey { get; }\n\t\tpublic int HoverRingKey { get; }\n\t\tpublic int MarkerKey { get; }\n\t\tpublic int LineKey { get; }\n\t\tpublic InstanceLayout OverlayLayout => _overlayLayout;\n\t\tpublic NativeArray<uint> OverlayInstances => _overlayInstances;\n\t\tpublic NativeArray<Run> DecalRuns => _decalRuns;\n\t\tpublic NativeReference<OverlayOutput> PendingOverlay => _pendingOverlay;\n\t\tpublic OverlayOutput Overlay => _overlay;\n\n\t\treadonly AllocatorManager.AllocatorHandle _allocator;\n\n\t\t// looks: by definition entry, null for none.\n\t\tpublic EntityRenderer(IReadOnlyList<LookSource> looks, OverlayStyle overlays, int initialCapacity, AllocatorManager.AllocatorHandle allocator)\n\t\t{\n\t\t\tAssert.IsNotNull(overlays, \"EntityRenderer: no overlay style\");\n\t\t\tAssert.IsNotNull(overlays.SelectionMask, \"EntityRenderer: overlay style has no selection mask\");\n\n\t\t\t_allocator = allocator;\n\t\t\t_group = new BatchRendererGroup(OnPerformCulling, IntPtr.Zero);\n\n\t\t\t_group.SetEnabledViewTypes(new[]\n\t\t\t{\n\t\t\t\tBatchCullingViewType.Camera,\n\t\t\t\tBatchCullingViewType.Light,\n#if UNITY_EDITOR\n\t\t\t\tBatchCullingViewType.Picking,\n\t\t\t\tBatchCullingViewType.SelectionOutline,\n#endif\n\t\t\t});\n\n\t\t\tvar decals = new[] { overlays.SelectedRing, overlays.HoverRing, overlays.OrderMarker, overlays.OrderLine };\n\t\t\t_registry = new RenderRegistry(_group, looks, decals, Resources.GetBuiltinResource<Mesh>(\"Cube.fbx\"), allocator);\n\t\t\tSelectedRingKey = _registry.FirstOverlayKey;\n\t\t\tHoverRingKey = SelectedRingKey + 1;\n\t\t\tMarkerKey = SelectedRingKey + 2;\n\t\t\tLineKey = SelectedRingKey + 3;\n// … (truncated)"
+      },
+      "baseline": {
+        "restates_code": 0.16,
+        "explains_identifier": 0.3,
+        "verbose_prose": 0.15
+      }
+    },
+    {
+      "name": "real_external_contract",
+      "expect": "pass",
+      "rules": [
+        "framework_mechanism",
+        "not_owner"
+      ],
+      "why": "engine API contract, not language behaviour; exercises the framework_mechanism exemption",
+      "state": {
+        "comment": "// TempJob is the culling output's contract: BatchRendererGroup frees these itself.",
+        "annotated_code": "\t\tstatic unsafe T* MallocBRG<T>(int count) where T : unmanaged\n\t\t\t=> (T*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<T>() * (long)count, UnsafeUtility.AlignOf<T>(), Allocator.TempJob);\n\n\t\tpublic void Dispose()\n\t\t{\n#if UNITY_EDITOR\n\t\t\t// Before the group, and before the picking material goes with Destroyed. Unset without the editor hook.\n\t\t\tif (!_picking.Equals(BatchMaterialID.Null))\n\t\t\t\t_group.UnregisterMaterial(_picking);\n\t\t\tDestroyed?.Invoke(this);\n#endif\n\t\t\tif (SlotEntities.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(SlotEntities);\n\t\t\tif (SlotRadii.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(SlotRadii);\n\t\t\tif (StaticSlotRadii.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(StaticSlotRadii);\n\t\t\tif (_isSlotSelected.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_isSlotSelected);\n\t\t\tReleaseStatic();\n\n\t\t\t// Registry first: unregistering goes through the group.\n\t\t\t_registry.Dispose();\n\t\t\t_group.UnregisterMaterial(_selectionMask);\n\t\t\t_group.Dispose();\n\t\t\t_dynamicBuffer.Dispose();\n\t\t\t_overlayBuffer.Dispose();\n\n\t\t\tif (_instances.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_instances);\n\t\t\tif (_runs.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_runs);\n\t\t\tif (_pendingBounds.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_pendingBounds);\n\t\t\tif (_overlayInstances.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_overlayInstances);\n\t\t\tif (_decalRuns.IsCreated)\n\t\t\t\tCollectionHelper.Dispose(_decalRuns);\n\t\t\tif (_pendingOverlay.IsCreated)\n\t\t\t\t_pendingOverlay.Dispose();\n\t\t}"
+      },
+      "baseline": {
+        "framework_mechanism": 0.07,
+        "not_owner": 0.64
+      }
+    },
+    {
+      "name": "names_what_identifier_means",
+      "expect": "flag",
+      "rules": [
+        "explains_identifier"
+      ],
+      "why": "a better name deletes the comment",
+      "state": {
+        "comment": "// tmp is the list of entities that are currently selected.",
+        "annotated_code": "var tmp = new List<EntityHandle>();"
+      },
+      "baseline": {
+        "explains_identifier": 0.85
+      }
+    },
+    {
+      "name": "narrates_history",
+      "expect": "flag",
+      "rules": [
+        "history"
+      ],
+      "why": "past state and a fixed bug",
+      "state": {
+        "comment": "// This used to rebuild every frame, which was too slow, so the render refactor changed it.",
+        "annotated_code": "void RebuildStatic()\n{\n\tif (!_staticDirty)\n\t\treturn;\n\n\tBuildStatic();\n}"
+      },
+      "baseline": {
+        "history": 0.97
+      }
+    },
+    {
+      "name": "points_at_callers",
+      "expect": "flag",
+      "rules": [
+        "pointer_or_callers"
+      ],
+      "why": "today's callers and a file pointer",
+      "state": {
+        "comment": "// Called from RenderGatherSystem. See notes/looks.md for the full picture.",
+        "annotated_code": "internal void Upload()\n{\n\t_dynamicBuffer.SetData(_instances);\n}"
+      },
+      "baseline": {
+        "pointer_or_callers": 0.99
+      }
+    },
+    {
+      "name": "restates_the_line",
+      "expect": "flag",
+      "rules": [
+        "restates_code"
+      ],
+      "why": "adds nothing the line does not say",
+      "state": {
+        "comment": "// Increment the counter by one.",
+        "annotated_code": "_counter++;"
+      },
+      "baseline": {
+        "restates_code": 0.89
+      }
+    },
+    {
+      "name": "explains_the_language",
+      "expect": "flag",
+      "rules": [
+        "framework_mechanism"
+      ],
+      "why": "List<T> growth is knowledge every C# reader carries",
+      "state": {
+        "comment": "// List<T> doubles its backing array when it runs out of room, so Add is amortised O(1).",
+        "annotated_code": "_pending.Add(handle);"
+      },
+      "baseline": {
+        "framework_mechanism": 0.95
+      }
+    },
+    {
+      "name": "defers_to_later",
+      "expect": "flag",
+      "rules": [
+        "future_plan"
+      ],
+      "why": "planned work",
+      "state": {
+        "comment": "// TODO: replace this with a job once the scheduler lands.",
+        "annotated_code": "for (int i = 0; i < _instanceCount; i++)\n\tWriteMatrix(i);"
+      },
+      "baseline": {
+        "future_plan": 0.99
+      }
+    },
+    {
+      "name": "claims_more_than_code_does",
+      "expect": "flag",
+      "rules": [
+        "contradicts_code"
+      ],
+      "why": "says always, code returns early",
+      "state": {
+        "comment": "// Always writes every slot.",
+        "annotated_code": "void WriteAll()\n{\n\tif (_instanceCount == 0)\n\t\treturn;\n\n\tfor (int i = 0; i < _instanceCount; i++)\n\t\tWriteMatrix(i);\n}"
+      },
+      "baseline": {
+        "contradicts_code": 0.84
+      }
+    },
+    {
+      "name": "describes_internals_to_caller",
+      "expect": "flag",
+      "rules": [
+        "caller_irrelevant_internals"
+      ],
+      "why": "algorithm and internal encoding, on a method declaration",
+      "state": {
+        "comment": "// Walks the slot array back to front, swapping each live entry into the first free index,\n// then rewrites the head field so the packed run starts at zero.",
+        "annotated_code": "internal void Compact()\n{\n\tfor (int i = _instanceCount - 1; i >= 0; i--)\n\t\tSwapIntoFree(i);\n\n\t_head = 0;\n}"
+      },
+      "baseline": {
+        "caller_irrelevant_internals": 0.95
+      }
+    },
+    {
+      "name": "padded_prose",
+      "expect": "flag",
+      "rules": [
+        "verbose_prose",
+        "unstructured"
+      ],
+      "why": "full sentences, hedging and connectives carrying no meaning",
+      "state": {
+        "comment": "// It is worth noting that in general this particular method will usually attempt to perform\n// the upload operation, although of course it is possible that in some cases it may decide\n// that it is not really necessary to do so, in which case it will simply return early instead.",
+        "annotated_code": "internal void Upload()\n{\n\tif (!_dirty)\n\t\treturn;\n\n\t_dynamicBuffer.SetData(_instances);\n}"
+      },
+      "baseline": {
+        "verbose_prose": 0.96,
+        "unstructured": 0.75
+      }
+    }
+  ]
+}
