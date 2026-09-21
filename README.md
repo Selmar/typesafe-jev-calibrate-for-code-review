@@ -2,7 +2,7 @@
 
 TypeSafe Jev launched a week ago. There are some code-review tools built on it, and I've written one as well. There doesn't seem to be a lot of talk about what it takes to build tools where the output is worth reading.
 
-Getting to something I'd run before a commit took me two days (though it's nowhere near perfect). Calibrating is most of the work, so I'm sharing this in the hope you will spend less time. I will show you the measurements, and something so you can re-run some of the numbers in this README instead of taking my word for it.
+Getting to something I'd run as part of a code review took me two days (though it's nowhere near perfect). Calibrating is most of the work, so I'm sharing this in the hope you will spend less time. I will show you the measurements, and something so you can re-run some of the numbers in this README instead of taking my word for it.
 
 ## The setup
 
@@ -66,7 +66,7 @@ The fixes it drove were real:
 - a missing assertion at a public boundary;
 - and more.
 
-I found the comment rules work the best so far, but I'm sure there's a lot more to be gained.
+As it stands, Jev as a review tool for me (and the AI) is a helpful addition. It has clear limits, and works best in small measurable contexts, where it augments code analyzer results. Setting it up takes some time, and works best when curating the instructions yourself. I found the comment rules work the best so far, but I'm sure there's a lot more to be gained.
 
 Both rule sets over my four test files cost ~1.4M input tokens, about six cents.
 
