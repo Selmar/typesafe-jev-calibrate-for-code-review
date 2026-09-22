@@ -30,7 +30,7 @@
       ],
       "threshold": 0.6,
       "label": "bool method named as an action, not a claim",
-      "instructions": "Does `declaration` return bool under a name that reads as performing an act rather than stating a fact?",
+      "instructions": "Does `declaration` return bool under a name that reads as performing an act rather than stating a fact, so a call inside an if-condition reads wrong?",
       "criteria": {
         "true": "The name is a verb describing doing something (Authorise, Charge, Verify) although the method only reports a fact and changes nothing.",
         "false": "The name reads as a claim that can sit inside an if-condition (IsAuthorised, HasBalance, CanRetry), or the method does not return bool."

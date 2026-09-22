@@ -13,7 +13,7 @@
         "declaration": "EntityDefKey InternTimelineNode(TimelineNodeConfig node, string context)\n{\n    if (_nodeKeys.TryGetValue(node, out var existing))\n        return existing;\n\n    var key = MintGeneratedKey();\n    _nodeKeys[node] = key;\n    DeclareTimelineNodeDefinition(key, node, context);\n    return key;\n}"
       },
       "baseline": {
-        "hidden_side_effect": 0.41
+        "hidden_side_effect": 0.39
       }
     },
     {
@@ -43,7 +43,7 @@
         "declaration": "\t\tvoid EnsureCapacity(int instanceCount)\n\t\t{\n\t\t\tif (instanceCount <= _layout.Capacity)\n\t\t\t\treturn;\n\n\t\t\t_group.RemoveBatch(_batch);\n\t\t\t_buffer.Dispose();\n\t\t\tCollectionHelper.Dispose(_instances);\n\t\t\tCollectionHelper.Dispose(SlotEntities);\n\t\t\tCollectionHelper.Dispose(SlotRadii);\n\t\t\tCollectionHelper.Dispose(_isSlotSelected);\n\t\t\tBuild(math.max(instanceCount, _layout.Capacity + _layout.Capacity / 2));\n\t\t}"
       },
       "baseline": {
-        "unasserted_precondition": 0.11
+        "unasserted_precondition": 0.12
       }
     },
     {
@@ -58,7 +58,7 @@
         "declaration": "\t\tpublic void EnsureCapacity(int instanceCount)\n\t\t{\n\t\t\tif (instanceCount <= _layout.Capacity)\n\t\t\t\treturn;\n\n\t\t\t_group.RemoveBatch(_batch);\n\t\t\t_buffer.Dispose();\n\t\t\tCollectionHelper.Dispose(_instances);\n\t\t\tCollectionHelper.Dispose(SlotEntities);\n\t\t\tCollectionHelper.Dispose(SlotRadii);\n\t\t\tCollectionHelper.Dispose(_isSlotSelected);\n\t\t\tBuild(math.max(instanceCount, _layout.Capacity + _layout.Capacity / 2));\n\t\t}"
       },
       "baseline": {
-        "unasserted_precondition": 0.67
+        "unasserted_precondition": 0.68
       }
     },
     {
@@ -148,7 +148,7 @@
         "declaration": "float Extent(int slot)\n{\n\tvar span = _max[slot] - _min[slot];\n\treturn math.length(span) * 0.5f;\n}"
       },
       "baseline": {
-        "subject_not_action": 0.81
+        "subject_not_action": 0.83
       }
     },
     {
@@ -163,22 +163,22 @@
         "declaration": "bool ContainsEntity(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
       },
       "baseline": {
-        "predicate_reads_as_action": 0.48
+        "predicate_reads_as_action": 0.19
       }
     },
     {
       "name": "predicate_reads_as_action_flag",
       "kind": "declaration",
-      "expect": "flag",
+      "expect": "straddles",
       "rules": [
         "predicate_reads_as_action"
       ],
-      "why": "verb reads as doing something; only reports a fact",
+      "why": "verb reads as doing something; only reports a fact. Sits on 0.60 under every wording tried, so it is reported and never failed - the solid flag cases are _select and _refresh.",
       "state": {
         "declaration": "bool Evaluate(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
       },
       "baseline": {
-        "predicate_reads_as_action": 0.8
+        "predicate_reads_as_action": 0.62
       }
     },
     {
@@ -222,7 +222,7 @@
         ]
       },
       "baseline": {
-        "name_is_implementation": 0.65
+        "name_is_implementation": 0.64
       }
     },
     {
@@ -252,7 +252,7 @@
         "declaration": "public void Reserve(int count)\n{\n\tAssert.IsTrue(count > 0, \"Reserve: count must be positive\");\n\n\tif (count <= 0)\n\t\treturn;\n\n\t_capacity += count;\n}"
       },
       "baseline": {
-        "assert_and_guard": 0.7
+        "assert_and_guard": 0.72
       }
     },
     {
@@ -297,7 +297,7 @@
         "declaration": "void Encapsulate(float3 point)\n{\n\t_bounds.Min = math.min(_bounds.Min, point);\n\t_bounds.Max = math.max(_bounds.Max, point);\n}"
       },
       "baseline": {
-        "index_as_field": 0.11
+        "index_as_field": 0.1
       }
     },
     {
@@ -312,7 +312,7 @@
         "declaration": "void Encapsulate(float3 point)\n{\n\t_pendingMinMax[0] = math.min(_pendingMinMax[0], point);\n\t_pendingMinMax[1] = math.max(_pendingMinMax[1], point);\n}"
       },
       "baseline": {
-        "index_as_field": 0.77
+        "index_as_field": 0.76
       }
     },
     {
@@ -334,7 +334,7 @@
         ]
       },
       "baseline": {
-        "name_is_implementation": 0.8
+        "name_is_implementation": 0.81
       }
     },
     {
@@ -356,7 +356,7 @@
         ]
       },
       "baseline": {
-        "name_is_implementation": 0.89
+        "name_is_implementation": 0.88
       }
     },
     {
@@ -377,7 +377,7 @@
         ]
       },
       "baseline": {
-        "name_is_implementation": 0.16
+        "name_is_implementation": 0.17
       }
     },
     {
@@ -399,7 +399,7 @@
         ]
       },
       "baseline": {
-        "name_is_implementation": 0.36
+        "name_is_implementation": 0.33
       }
     },
     {
@@ -414,7 +414,7 @@
         "declaration": "bool Select(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
       },
       "baseline": {
-        "predicate_reads_as_action": 0.86
+        "predicate_reads_as_action": 0.79
       }
     },
     {
@@ -444,7 +444,7 @@
         "declaration": "bool IsVisible(EntityHandle entity)\n{\n\treturn _members.Contains(entity);\n}"
       },
       "baseline": {
-        "predicate_reads_as_action": 0.06
+        "predicate_reads_as_action": 0.04
       }
     },
     {
@@ -460,6 +460,21 @@
       },
       "baseline": {
         "predicate_reads_as_action": 0.04
+      }
+    },
+    {
+      "name": "predicate_reads_as_action_pass_trypattern",
+      "kind": "declaration",
+      "expect": "pass",
+      "rules": [
+        "predicate_reads_as_action"
+      ],
+      "why": "the C# Try idiom: an act-shaped name that reads correctly in an if, and does change an out parameter. Dropping the if-condition clause from the question flagged all 8 Try* methods in the codebase, so this case guards that wording.",
+      "state": {
+        "declaration": "public bool TryGetValue(AttributeKey key, out AttributeValue value)\n{\n\tif (!_byKey.TryGetValue(key, out var index))\n\t{\n\t\tvalue = default;\n\t\treturn false;\n\t}\n\n\tvalue = _values[index];\n\treturn true;\n}"
+      },
+      "baseline": {
+        "predicate_reads_as_action": 0.34
       }
     },
     {

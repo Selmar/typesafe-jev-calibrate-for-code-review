@@ -2,7 +2,7 @@
 
 TypeSafe Jev launched a week ago. There are some code-review tools built on it, and I've written one as well. There doesn't seem to be a lot of talk about what it takes to build tools where the output is worth reading.
 
-Getting to something I'd run as part of a code review took me two days (though it's nowhere near perfect). Calibrating is most of the work, so I'm sharing this in the hope you will spend less time. I will show you the measurements, and something so you can re-run some of the numbers in this README instead of taking my word for it.
+Getting to something I'd run as part of a code review took me two days (though it's nowhere near perfect), and I spent another refining and debugging while writing this. Calibrating is most of the work, so I'm sharing this in the hope you will spend less time. I will show you the measurements, and something so you can re-run some of the numbers in this README instead of taking my word for it.
 
 ## The setup
 
@@ -12,9 +12,9 @@ From these conventions I wrote two Jev rulesets, one for comments and one for co
 
 ## Findings
 
-### 1. Judgement scales with state
+### 1. Judgement scales (and reorders) with state
 
-Adding questions to a request barely moves the answers, however adding *state* changes everything. A consequence of this is that you cannot batch multiple topics in a single request (or at the very least your scoring thresholds will not apply the same).
+Adding questions to a request barely moves the answers, however adding *state* changes everything. A consequence of this is that you cannot batch multiple topics in a single request if they do not share context: the thresholds do not carry over, and neither does the ranking.
 
 Here is a table, the result of sending a json with multiple comments + the code they annotate:
 | state | questions | `restates_code` |
@@ -25,6 +25,21 @@ Here is a table, the result of sending a json with multiple comments + the code 
 | 1 referenced pair + 14 unreferenced pairs | 15 | 0.74 |
 
 I tried various approaches: giving the entire file as context and referencing comment/code with line numbers, separating only comments from the file, giving the entire file as context to the pairs, and more. The conclusion is that context should only be added if the rule needs it to make an accurate judgement. This also led me to categorize rules based on the context they need, and judge rules together only if they share the context.
+
+Interestingly, comment rules seem to do better with more context: giving the entire file in addition to the comment + code block gives more accurate results. Of course, this is also a significant increase in token cost.
+
+My four test files, having already been through a thorough comment review, give me false positives depending on how the requests for the 82 comment blocks are shaped (same ruleset):
+
+| request shape | flags | requests | input tokens |
+|---|---|---|---|
+| one request per comment | 25 | 82 | 226k |
+| one request per ~16 comments | 11 | 5 | 161k |
+| one request per comment, plus the whole file | 0 | 82 | 799k |
+| one request per ~16 comments, plus the whole file | 2 | 7 | 302k |
+
+After inspecting what it was flagging, it seems clear to me that when batching without full file context, it doesn't just change the numbers, the results also reorder when ranked by confidence. Tweaking thresholds here does not help - it simply exchanges false negatives for false positives across the board. 
+
+A request per comment + code block, plus the whole file per request, performs best, with batched + file coming in a close second. Here, batching does *not* reorder significantly; I presume because of the file context that's present in all cases. The thresholds seem to carry over in this case, but some comments near the threshold have unstable enough judgements to flag here. That being said, the results *do* change when batching changes (for example, order of commentary in the request).
 
 ### 2. Textual tells beat inference
 
@@ -56,7 +71,7 @@ I stumbled upon this one while writing this. At first it seems confidence varian
 | `magic_literal_flag` | 0.812 | 0.006 | 0.80-0.82 |
 | `assert_message_flag` | 0.980 | 0.000 | 0.98-0.98 |
 
-So, it seems that noise is larger mid-range than at the extremes. I suppose this is why higher thresholds are recommended. Confident answers are solid, uncertain ones wobble, and thresholds are at the bottom end of this.
+So, it seems that noise is larger mid-range than at the extremes. This also supports the results I see when batching and re-ordering comments; stronger confidence has lower variance. I suppose this is why higher thresholds are recommended. Confident answers are solid, uncertain ones wobble, and thresholds are at the bottom end of this.
 
 ## Where it ended up
 
@@ -66,9 +81,11 @@ The fixes it drove were real:
 - a missing assertion at a public boundary;
 - and more.
 
-As it stands, Jev as a review tool for me (and the AI) is a helpful addition. It has clear limits, and works best in small measurable contexts, where it augments code analyzer results. Setting it up takes some time, and works best when curating the instructions yourself. I found the comment rules work the best so far, but I'm sure there's a lot more to be gained.
+As it stands, Jev as a review tool for me (and the AI) is a helpful addition. It has clear limits, and works best in small measurable contexts, where it could augment code analyzer results. Setting it up takes some time, and works best when curating the instructions yourself. I found the comment rules work the best so far, but I'm sure there's a lot more to be gained.
 
-Both rule sets over my four test files cost ~1.4M input tokens, about six cents.
+Both rule sets over my four test files cost ~1.7M input tokens, about seven cents. Requests are ~600ms each, and I've tested up to 48 parallel requests, which doesn't seem to move the response time.
+
+I'm still reviewing and updating the rules (this is very much a work in progress), but I probably won't update the rules in this repository later (or I'd have to rewrite this).
 
 ## Failures
 
@@ -88,12 +105,12 @@ python calibrate.py --include-withdrawn
 ```
 -- rules withdrawn; kept as evidence, not in use --
 ok    verb_rules_pass_control            verb_disagreement        0.16 vs 0.60 want=pass
-ok    verb_rules_pass_control            verb_overload            0.20 vs 0.60 want=pass
-ok    verb_disagreement_flag_control     verb_disagreement        0.81 vs 0.60 want=flag
+ok    verb_rules_pass_control            verb_overload            0.19 vs 0.60 want=pass
+ok    verb_disagreement_flag_control     verb_disagreement        0.80 vs 0.60 want=flag
 FAIL  verb_rules_flag_real               verb_disagreement        0.58 vs 0.60 want=flag
-ok    verb_rules_flag_real               verb_overload            0.66 vs 0.60 want=flag
-FAIL  verb_rules_pass_real               verb_disagreement        0.67 vs 0.60 want=pass
-ok    verb_rules_pass_real               verb_overload            0.51 vs 0.60 want=pass
+ok    verb_rules_flag_real               verb_overload            0.69 vs 0.60 want=flag
+FAIL  verb_rules_pass_real               verb_disagreement        0.68 vs 0.60 want=pass
+ok    verb_rules_pass_real               verb_overload            0.53 vs 0.60 want=pass
 ```
 
 Note that `verb_overload` seems to get both right here, but this is only because the rule describes this very class:
@@ -147,34 +164,35 @@ export TYPESAFE_API_KEY=...
 python calibrate.py
 ```
 ```
-ok    hidden_side_effect_pass            hidden_side_effect       0.41 vs 0.70 want=pass
+ok    hidden_side_effect_pass            hidden_side_effect       0.37 vs 0.70 want=pass
 ok    hidden_side_effect_flag            hidden_side_effect       0.92 vs 0.70 want=flag
-ok    unasserted_precondition_pass       unasserted_precondition  0.11 vs 0.60 want=pass
+ok    unasserted_precondition_pass       unasserted_precondition  0.12 vs 0.60 want=pass
 ok    unasserted_precondition_flag       unasserted_precondition  0.67 vs 0.60 want=flag
-ok    magic_literal_pass                 magic_literal            0.08 vs 0.60 want=pass
-ok    magic_literal_flag                 magic_literal            0.81 vs 0.60 want=flag
-ok    assert_message_pass                assert_message           0.10 vs 0.60 want=pass
+ok    magic_literal_pass                 magic_literal            0.09 vs 0.60 want=pass
+ok    magic_literal_flag                 magic_literal            0.82 vs 0.60 want=flag
+ok    assert_message_pass                assert_message           0.11 vs 0.60 want=pass
 ok    assert_message_flag                assert_message           0.98 vs 0.60 want=flag
-ok    subject_not_action_pass            subject_not_action       0.05 vs 0.60 want=pass
+ok    subject_not_action_pass            subject_not_action       0.04 vs 0.60 want=pass
 ok    subject_not_action_flag            subject_not_action       0.81 vs 0.60 want=flag
-ok    predicate_reads_as_action_pass     predicate_reads_as_action 0.48 vs 0.60 want=pass
-ok    predicate_reads_as_action_flag     predicate_reads_as_action 0.80 vs 0.60 want=flag
+ok    predicate_reads_as_action_pass     predicate_reads_as_action 0.23 vs 0.60 want=pass
+~~~   predicate_reads_as_action_flag     predicate_reads_as_action 0.62 vs 0.60 want=straddles
 ok    name_is_implementation_pass        name_is_implementation   0.11 vs 0.60 want=pass
-ok    name_is_implementation_flag        name_is_implementation   0.65 vs 0.60 want=flag
+ok    name_is_implementation_flag        name_is_implementation   0.64 vs 0.60 want=flag
 ok    assert_and_guard_pass              assert_and_guard         0.04 vs 0.60 want=pass
 ok    assert_and_guard_flag              assert_and_guard         0.70 vs 0.60 want=flag
-ok    silent_guard_pass                  silent_guard             0.40 vs 0.60 want=pass
+ok    silent_guard_pass                  silent_guard             0.41 vs 0.60 want=pass
 ok    silent_guard_flag                  silent_guard             0.89 vs 0.60 want=flag
 ok    index_as_field_pass                index_as_field           0.11 vs 0.60 want=pass
-ok    index_as_field_flag                index_as_field           0.77 vs 0.60 want=flag
+ok    index_as_field_flag                index_as_field           0.78 vs 0.60 want=flag
 ok    name_is_implementation_flag_map    name_is_implementation   0.80 vs 0.60 want=flag
 ok    name_is_implementation_flag_buffer name_is_implementation   0.89 vs 0.60 want=flag
 ok    name_is_implementation_pass_role   name_is_implementation   0.16 vs 0.60 want=pass
-ok    name_is_implementation_pass_unshared name_is_implementation   0.36 vs 0.60 want=pass
-ok    predicate_reads_as_action_flag_select predicate_reads_as_action 0.86 vs 0.60 want=flag
-ok    predicate_reads_as_action_flag_refresh predicate_reads_as_action 0.92 vs 0.60 want=flag
-ok    predicate_reads_as_action_pass_isvisible predicate_reads_as_action 0.06 vs 0.60 want=pass
+ok    name_is_implementation_pass_unshared name_is_implementation   0.34 vs 0.60 want=pass
+ok    predicate_reads_as_action_flag_select predicate_reads_as_action 0.78 vs 0.60 want=flag
+ok    predicate_reads_as_action_flag_refresh predicate_reads_as_action 0.91 vs 0.60 want=flag
+ok    predicate_reads_as_action_pass_isvisible predicate_reads_as_action 0.04 vs 0.60 want=pass
 ok    predicate_reads_as_action_pass_nonbool predicate_reads_as_action 0.04 vs 0.60 want=pass
+ok    predicate_reads_as_action_pass_trypattern predicate_reads_as_action 0.36 vs 0.60 want=pass
 ```
 
 ```
