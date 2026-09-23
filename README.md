@@ -57,7 +57,7 @@ I conclude that you'd best feed Jev extra information from the code analyzer (if
 
 There are cases where you *want* the false positives, because false negatives are worse. I've also found that, regularly, legitimate false positives still indicate a code smell.
 
-The threshold is a result of your codebase, your rule wording, and how easily measurable the rule is to begin with. Most people seem to default the thresholds to 0.8, but I started mine at 0.6 (and many of them actually stayed there).
+The threshold is a result of your codebase, your rule wording, and how easily measurable the rule is to begin with. Most people seem to default the thresholds to 0.8. I started mine at 0.6 (and many of them actually stayed there). However I have had test cases where a positive was around 0.5 and a negative around 0.3, with the scores ordered correctly, and consistently so. I didn't stick with them, but it seems that separating thresholds may exist even below a confidence level of 0.5.
 
 ### 4. The noise is worst exactly where the threshold is
 
